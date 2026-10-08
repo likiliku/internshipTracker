@@ -1,0 +1,4 @@
+# Optional enhanced NLP/ML dependencies. Install in a Python version supported by these wheels.
+# The application has a transparent token-overlap fallback when they are unavailable.
+scikit-learn>=1.7.0
+spacy>=3.8.0
