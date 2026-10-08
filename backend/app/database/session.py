@@ -22,7 +22,13 @@ settings = Settings()
 if not settings.jwt_secret_key or settings.jwt_secret_key == "development-only-change-me":
     raise ValueError("JWT_SECRET_KEY is not set securely. Please set a strong random secret in your .env file.")
 
-engine = create_engine(settings.database_url, connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}, pool_pre_ping=True)
+connect_args = {}
+if settings.database_url.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+elif "tidbcloud" in settings.database_url:
+    connect_args = {"ssl": {"ssl_cert_reqs": "CERT_NONE"}}
+
+engine = create_engine(settings.database_url, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def get_db():
     db = SessionLocal()
