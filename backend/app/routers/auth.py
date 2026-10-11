@@ -34,6 +34,8 @@ def login(data: LoginIn, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.email == data.email))
     if not user or not pwd.verify(data.password, user.password_hash): 
         raise HTTPException(401, "Incorrect email or password")
+    if user.role != Role.ADMIN:
+        raise HTTPException(403, "Password login is restricted to administrators only. Users must log in via OTP.")
     return {"access_token": token(user), "token_type": "bearer", "user": serialize(user)}
 
 @router.get("/me")
