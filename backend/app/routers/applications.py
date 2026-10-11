@@ -10,7 +10,7 @@ from app.core.security import serialize, require
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
 @router.post("", status_code=201)
-def add_application(data:ApplicationIn, user=Depends(require(Role.STUDENT)), db:Session=Depends(get_db)):
+def add_application(data:ApplicationIn, user=Depends(require(Role.STUDENT, Role.ADMIN)), db:Session=Depends(get_db)):
     if not db.get(Internship, data.internship_id): raise HTTPException(404, "Internship not found")
     if db.scalar(select(Application).where(Application.user_id==user.id, Application.internship_id==data.internship_id)): 
         raise HTTPException(409, "This internship is already tracked")
@@ -23,7 +23,7 @@ def add_application(data:ApplicationIn, user=Depends(require(Role.STUDENT)), db:
     return serialize(x)
 
 @router.get("")
-def applications(user=Depends(require(Role.STUDENT)), db:Session=Depends(get_db)):
+def applications(user=Depends(require(Role.STUDENT, Role.ADMIN)), db:Session=Depends(get_db)):
     rows = db.scalars(select(Application).where(Application.user_id==user.id)).all()
     return [{**serialize(x), "internship": serialize(x.internship)} for x in rows]
 

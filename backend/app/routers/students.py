@@ -27,13 +27,22 @@ def serialize_profile(p: StudentProfile):
     return data
 
 @router.get("/profile")
-def profile(user=Depends(require(Role.STUDENT)), db: Session = Depends(get_db)):
+def profile(user=Depends(require(Role.STUDENT, Role.ADMIN)), db: Session = Depends(get_db)):
     p = db.scalar(select(StudentProfile).where(StudentProfile.user_id == user.id))
+    if not p:
+        p = StudentProfile(user_id=user.id)
+        db.add(p)
+        db.commit()
+        db.refresh(p)
     return {**serialize(user), **serialize_profile(p)}
 
 @router.put("/profile")
-def update_profile(data: ProfileIn, user=Depends(require(Role.STUDENT)), db: Session = Depends(get_db)):
+def update_profile(data: ProfileIn, user=Depends(require(Role.STUDENT, Role.ADMIN)), db: Session = Depends(get_db)):
     p = db.scalar(select(StudentProfile).where(StudentProfile.user_id == user.id))
+    if not p:
+        p = StudentProfile(user_id=user.id)
+        db.add(p)
+        db.flush()
     dump = data.model_dump()
     for k in ['college', 'degree', 'branch', 'current_year', 'graduation_year', 'cgpa']: 
         setattr(p, k, dump.get(k))
@@ -86,7 +95,7 @@ def read_all_notifications(user=Depends(current_user), db: Session = Depends(get
     return {"success": True}
 
 @router.post("/resume/upload")
-def upload_resume(file: UploadFile = File(...), user=Depends(require(Role.STUDENT)), db: Session = Depends(get_db)):
+def upload_resume(file: UploadFile = File(...), user=Depends(require(Role.STUDENT, Role.ADMIN)), db: Session = Depends(get_db)):
     if file.content_type not in {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"} and not file.filename.lower().endswith(('.pdf', '.docx')):
         raise HTTPException(400, "Only PDF and DOCX resumes are accepted (.doc is not supported)")
     content = file.file.read()
@@ -100,6 +109,11 @@ def upload_resume(file: UploadFile = File(...), user=Depends(require(Role.STUDEN
     target.write_bytes(content)
     
     p = db.scalar(select(StudentProfile).where(StudentProfile.user_id == user.id))
+    if not p:
+        p = StudentProfile(user_id=user.id)
+        db.add(p)
+        db.flush()
+
     if p.resume:
         try: 
             os.remove(p.resume.storage_path)
@@ -128,7 +142,7 @@ def upload_resume(file: UploadFile = File(...), user=Depends(require(Role.STUDEN
     return {"success": True, "resume_id": resume.id, **result}
 
 @router.delete("/resume/{resume_id}")
-def delete_resume(resume_id: int, user=Depends(require(Role.STUDENT)), db: Session = Depends(get_db)):
+def delete_resume(resume_id: int, user=Depends(require(Role.STUDENT, Role.ADMIN)), db: Session = Depends(get_db)):
     p = db.scalar(select(StudentProfile).where(StudentProfile.user_id == user.id))
     if not p or not p.resume or p.resume.id != resume_id: 
         raise HTTPException(404, "Resume not found")
